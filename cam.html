@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Head Cursor — Blink Click Only (Refined), Fast Vertical, Mirrored</title>
+
+<!-- MediaPipe FaceMesh (no installs needed) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+<style>
+  :root{ --bg:#0b1020; --fg:#eaf0ff; --muted:#9fb0d9; --accent:#6aa3ff; }
+  *{ box-sizing:border-box }
+  body{ margin:0; background:linear-gradient(180deg,#0b1020,#0f1430); color:var(--fg); font-family:system-ui; overflow:auto }
+  header{ position:sticky; top:0; z-index:20; backdrop-filter:blur(8px); background:rgba(10,15,35,.55); border-bottom:1px solid rgba(255,255,255,.08) }
+  .wrap{ max-width:1100px; margin:0 auto; padding:12px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+  .btn{ background:#12193a; color:var(--fg); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:8px 12px; cursor:pointer }
+  .pill{ font-size:12px; color:var(--muted) }
+  .layout{ display:grid; grid-template-columns:1fr 360px; gap:16px; max-width:1400px; margin:0 auto; padding:16px }
+  @media (max-width:960px){ .layout{ grid-template-columns:1fr } }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px }
+  .card{ background:#121735; border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25) }
+  .panel{ position:sticky; top:72px; align-self:start; background:#0e1638; border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:12px; display:flex; flex-direction:column; gap:10px }
+  .panel h3{ margin:6px 8px 4px; font-size:16px; color:#d9e3ff }
+  .videoWrap{ position:relative; width:100%; aspect-ratio:4/3; background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.12) }
+  .videoWrap canvas{ position:absolute; inset:0; width:100%; height:100% }
+  .stat{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px; font-size:13px; color:var(--muted); line-height:1.5 }
+  /* Virtual cursor */
+  #cursor{
+    position:fixed; left:50%; top:50%; width:22px; height:22px;
+    border:2px solid var(--accent); border-radius:50%;
+    transform:translate(-50%,-50%); background:rgba(106,163,255,0.12);
+    box-shadow:0 0 20px rgba(106,163,255,0.6); pointer-events:none; z-index:9999
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <button id="btnRecenter" class="btn">🎯 Re-Center (C)</button>
+      <span class="pill">Blink-to-click is ON. Dwell is disabled. Sideways perfect; vertical fast; no diagonal when nodding. C = re-center.</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main class="grid" aria-label="Demo content">
+      <div class="card"><h3>Try Blink Click</h3><p>Hover cursor over a button and do a strong blink → click.</p></div>
+      <div class="card"><h3>Buttons</h3><button class="btn" onclick="alert('Button A clicked')">Button A</button> <button class="btn" onclick="alert('Button B clicked')">Button B</button></div>
+      <div class="card"><h3>Links</h3><a class="btn" href="https://www.google.com/url?sa=i&url=https%3A%2F%2Fmyanimelist.net%2Fcharacter%2F175986%2FKotone_Shirakawa%2Fpics&psig=AOvVaw3lEBdfIy4zEMAWvZKxVLCg&ust=1762674771237000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCPCf6rGJ4pADFQAAAAAdAAAAABAE">Demo link</a></div>
+      <div class="card"><h3>Tips</h3><p>Give me 1–2 seconds to learn your eye openness (auto-calibration). Press C if baseline drifts.</p></div>
+    </main>
+
+    <aside class="panel">
+      <h3>What the AI Sees (Mirrored)</h3>
+      <div class="videoWrap"><canvas id="camCanvas"></canvas></div>
+      <div class="stat" id="stat">Preparing camera…</div>
+    </aside>
+  </div>
+
+  <div id="cursor" aria-hidden="true"></div>
+
+<script>
+/* ===== Movement Tunables (fast vertical, clean, decoupled) ===== */
+const DEADZONE_YAW   = 0.0045;
+const GAIN_X         = 3000;
+const NONLINEAR_X    = 1.18;
+const MAX_SPEED_X    = 1800;
+const SPEED_SMOOTH_X = 0.35;
+
+const DEADZONE_PITCH = 0.0040;
+const GAIN_Y         = 3200;
+const NONLINEAR_Y    = 1.12;
+const MAX_SPEED_Y    = 2000;
+const SPEED_SMOOTH_Y = 0.30;
+
+const PITCH_DOM_RATIO     = 1.6;  // pitch must dominate to suppress yaw
+const YAW_SUPPRESS_THRESH = 0.006; // yaw must be tiny to suppress
+
+const CURSOR_POS_SMOOTH = 0.10;
+
+/* ===== Blink Click Tunables (refined) ===== */
+const BLINK_ON = true;          // dwell is OFF, blink is ON
+const BASELINE_FRAMES = 60;     // ~1s for baseline
+const THRESH_FRAC = 0.78;       // blink threshold = baseline * frac
+const ABS_MIN_EAR = 0.18;       // safety floor (avoid too-low thresholds)
+const MIN_BLINK_FRAMES = 2;     // min consecutive closed frames
+const MAX_BLINK_FRAMES = 12;    // max frames (ignore long closures)
+const REFRACTORY_MS = 350;      // cooldown after a click
+const PITCH_IGNORE_ON_NOD = 0.06; // ignore blink if big downward nod (anti false-positive)
+/* =============================================================== */
+
+const camCanvas = document.getElementById('camCanvas');
+const camCtx = camCanvas.getContext('2d');
+const stat = document.getElementById('stat');
+const cursor = document.getElementById('cursor');
+const btnRecenter = document.getElementById('btnRecenter');
+
+/* Hidden video for MediaPipe */
+const videoEl = document.createElement('video');
+videoEl.style.display = 'none';
+document.body.appendChild(videoEl);
+
+/* Sizes */
+let vw = 640, vh = 480;
+camCanvas.width = vw; camCanvas.height = vh;
+
+/* Baseline (neutral head) */
+let yaw0 = 0, pitch0 = 0;
+function recenter(){ yaw0 = lastYaw; pitch0 = lastPitch; }
+btnRecenter.addEventListener('click', recenter);
+window.addEventListener('keydown', (e)=>{ if(e.key.toLowerCase()==='c') recenter(); });
+
+/* Cursor state */
+let cx = window.innerWidth/2, cy = window.innerHeight/2;
+let vx = 0, vy = 0;
+let lastTime = 0;
+
+/* Blink state */
+let baselineReady = false;
+const earBuffer = [];
+let earBaseline = 0.3; // reasonable start
+let closedCount = 0;
+let wasClosed = false;
+let lastClickAt = 0;
+
+/* Helpers */
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function sign(v){ return v<0? -1 : 1; }
+function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+function median(arr){ const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; }
+
+/* Element under cursor */
+function elementAt(x, y){
+  cursor.style.display = 'none';
+  const el = document.elementFromPoint(x, y);
+  cursor.style.display = '';
+  return el;
+}
+
+/* Synthetic click */
+function synthClick(x, y, target){
+  const el = target || elementAt(x, y);
+  if(!el) return;
+  const opts = {bubbles:true, cancelable:true, clientX:x, clientY:y, view:window};
+  ['pointerdown','mousedown','mouseup','click'].forEach(t => el.dispatchEvent(new MouseEvent(t, opts)));
+  cursor.animate([
+    { transform:'translate(-50%,-50%) scale(1)' },
+    { transform:'translate(-50%,-50%) scale(.75)' },
+    { transform:'translate(-50%,-50%) scale(1)' }
+  ], {duration:220, easing:'ease-out'});
+}
+
+/* EAR computation (MediaPipe indices) */
+function earForEye(lm, idx){
+  const p = (i)=>lm[i];
+  const A = dist(p(idx.top1), p(idx.bot1));
+  const B = dist(p(idx.top2), p(idx.bot2));
+  const C = dist(p(idx.left), p(idx.right));
+  return (A + B) / (2*C + 1e-6);
+}
+const EYE_IDXS = {
+  left:  { top1:159, bot1:145, top2:158, bot2:153, left:33,  right:133 },
+  right: { top1:386, bot1:374, top2:387, bot2:380, left:362, right:263 }
+};
+
+/* Robust yaw/pitch with IOD normalization */
+function estimateYawPitch(lm){
+  const nose = lm[1];
+  const leftEyeOuter  = lm[263];
+  const rightEyeOuter = lm[33];
+  const mid = { x:(leftEyeOuter.x + rightEyeOuter.x)/2, y:(leftEyeOuter.y + rightEyeOuter.y)/2 };
+  const iod = dist(leftEyeOuter, rightEyeOuter) + 1e-6;
+  let yaw   = -(nose.x - mid.x) / iod;  // mirrored for natural feel
+  let pitch =  (nose.y - mid.y)  / iod; // normalized vertical
+  return { yaw, pitch };
+}
+
+function mapToSpeed(delta, dz, gain, pow, cap){
+  const m = Math.abs(delta);
+  if(m <= dz) return 0;
+  const ex = m - dz;
+  let spd = gain * Math.pow(ex, pow);
+  return Math.min(spd, cap) * sign(delta);
+}
+
+/* MediaPipe FaceMesh */
+const faceMesh = new FaceMesh({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`
+});
+faceMesh.setOptions({
+  maxNumFaces: 1,
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6,
+  refineLandmarks: true
+});
+
+let lastYaw = 0, lastPitch = 0;
+
+/* Mirrored preview + landmarks aligned */
+function drawFace(results){
+  camCtx.save();
+  camCtx.clearRect(0,0,vw,vh);
+  camCtx.translate(vw, 0); camCtx.scale(-1, 1);   // mirror view
+  camCtx.drawImage(results.image, 0, 0, vw, vh);
+  if(results.multiFaceLandmarks && results.multiFaceLandmarks.length){
+    const lm = results.multiFaceLandmarks[0];
+    drawConnectors(camCtx, lm, FACEMESH_TESSELATION, {color: '#22e3ff', lineWidth: 0.6});
+  }
+  camCtx.restore();
+}
+
+function onResults(results){
+  drawFace(results);
+  if(!(results.multiFaceLandmarks && results.multiFaceLandmarks.length)){
+    stat.textContent = 'No face detected';
+    return;
+  }
+
+  const lm = results.multiFaceLandmarks[0];
+  const {yaw, pitch} = estimateYawPitch(lm);
+  lastYaw = yaw; lastPitch = pitch;
+
+  // ----- Blink baseline & detection -----
+  const earL = earForEye(lm, EYE_IDXS.left);
+  const earR = earForEye(lm, EYE_IDXS.right);
+  const ear = (earL + earR) / 2;
+
+  if (!baselineReady) {
+    earBuffer.push(ear);
+    if (earBuffer.length >= BASELINE_FRAMES) {
+      // use median for robustness
+      earBaseline = Math.max(ABS_MIN_EAR + 0.02, median(earBuffer));
+      baselineReady = true;
+    }
+  } else {
+    // slow drift correction when clearly open
+    if (ear > earBaseline * 0.95) {
+      earBaseline = 0.995 * earBaseline + 0.005 * ear; // slow EMA
+    }
+  }
+
+  const dynThresh = Math.max(ABS_MIN_EAR, earBaseline * THRESH_FRAC);
+  const eyesClosed = ear < dynThresh;
+
+  // Anti false-positive: ignore if heavy downward nod at the same time
+  const bigNod = (pitch - pitch0) > PITCH_IGNORE_ON_NOD;
+
+  if (BLINK_ON && baselineReady && !bigNod) {
+    if (eyesClosed) {
+      closedCount++;
+      wasClosed = true;
+    } else {
+      if (wasClosed) {
+        const now = performance.now();
+        if (closedCount >= MIN_BLINK_FRAMES && closedCount <= MAX_BLINK_FRAMES && (now - lastClickAt) > REFRACTORY_MS) {
+          synthClick(cx, cy);
+          lastClickAt = now;
+        }
+      }
+      closedCount = 0;
+      wasClosed = false;
+    }
+  } else if (!eyesClosed) {
+    closedCount = 0;
+    wasClosed = false;
+  }
+
+  stat.innerHTML = `
+    <b>Status:</b> Tracking • Blink Click ON (dwell OFF)<br>
+    <b>Yaw (norm):</b> ${(yaw - yaw0).toFixed(4)} • <b>Pitch:</b> ${(pitch - pitch0).toFixed(4)}<br>
+    <b>EAR:</b> ${ear.toFixed(3)} • <b>Baseline:</b> ${earBaseline.toFixed(3)} • <b>Thresh:</b> ${dynThresh.toFixed(3)}<br>
+    <b>Velocity:</b> X ${vx.toFixed(0)} px/s • Y ${vy.toFixed(0)} px/s<br>
+    <b>Tip:</b> If clicks are too easy/hard, tweak THRESH_FRAC (0.72–0.82).
+  `;
+}
+faceMesh.onResults(onResults);
+
+/* Camera */
+const camera = new Camera(videoEl, {
+  onFrame: async () => { await faceMesh.send({image: videoEl}); },
+  width: vw, height: vh
+});
+(async () => {
+  try{
+    await camera.start();
+    stat.textContent = 'Camera ready (mirrored). Tilt to move; blink to click. Baseline calibrates in ~1s. Eyes open normally.';
+  }catch(e){
+    stat.textContent = 'Camera failed. Allow permission and reload.';
+  }
+})();
+
+/* Main loop — velocity hold with pitch-dominance horizontal suppression */
+function loop(t){
+  if(!lastTime) lastTime = t;
+  const dt = (t - lastTime) / 1000;
+  lastTime = t;
+
+  const dyaw   = lastYaw   - yaw0;
+  const dpitch = lastPitch - pitch0;
+
+  // Axis decoupling to stop diagonal drift while nodding
+  let dyawEff = dyaw;
+  if (Math.abs(dpitch) > PITCH_DOM_RATIO * Math.abs(dyaw) && Math.abs(dyaw) < YAW_SUPPRESS_THRESH) {
+    dyawEff = 0;
+  }
+
+  // Target speeds
+  const tx = mapToSpeed(dyawEff,  DEADZONE_YAW,   GAIN_X, NONLINEAR_X, MAX_SPEED_X);
+  const ty = mapToSpeed(dpitch,   DEADZONE_PITCH, GAIN_Y, NONLINEAR_Y, MAX_SPEED_Y);
+
+  // Smooth velocities
+  vx += SPEED_SMOOTH_X * (tx - vx);
+  vy += SPEED_SMOOTH_Y * (ty - vy);
+
+  // Integrate positions
+  cx += vx * dt;
+  cy += vy * dt;
+
+  // Clamp & small smoothing
+  const nx = clamp(cx, 0, window.innerWidth);
+  const ny = clamp(cy, 0, window.innerHeight);
+  cx += CURSOR_POS_SMOOTH * (nx - cx);
+  cy += CURSOR_POS_SMOOTH * (ny - cy);
+
+  // Update cursor
+  cursor.style.left = `${cx}px`;
+  cursor.style.top  = `${cy}px`;
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* Resize */
+window.addEventListener('resize', ()=>{
+  cx = clamp(cx, 0, window.innerWidth);
+  cy = clamp(cy, 0, window.innerHeight);
+});
+
+/* Auto baseline after 1s */
+setTimeout(()=>{ recenter(); }, 1000);
+</script>
+</body>
+</html>
