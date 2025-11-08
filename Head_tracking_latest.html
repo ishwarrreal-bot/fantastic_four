@@ -1,0 +1,606 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Head Gesture Controller (Extra Smooth)</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --panel: #121a33;
+    --muted: #7f8db3;
+    --accent: #6ee7ff;
+    --good: #7cf29b;
+    --warn: #ffc857;
+    --danger: #ff6b6b;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: #e6ecff; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; overflow: hidden;}
+  .wrap { display: grid; grid-template-columns: 340px 1fr; height: 100%; }
+  .left {
+    padding: 16px; background: linear-gradient(180deg, #0f1630, #0b1020 60%); border-right: 1px solid #1f2a4d; overflow:auto;
+  }
+  h1 { font-size: 18px; margin: 0 0 10px; letter-spacing: .5px;}
+  .card { background: var(--panel); border: 1px solid #1f2a4d; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .btn {
+    padding: 10px 14px; border-radius: 10px; border: 1px solid #2b3766; background: #1a254a; color: #e6ecff; cursor:pointer;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: linear-gradient(180deg,#1d335f,#16254b); border-color:#30417a; }
+  .btn.good { background:#163a2a; border-color:#2d6f53; color:#d9ffe7;}
+  .btn.warn { background:#3f310f; border-color:#7a6221; color:#fff1cf;}
+  .muted { color: var(--muted); font-size: 12px; }
+  label { font-size: 12px; color:#b6c3ea; }
+  input[type="range"] { width: 100%; }
+  select { width: 100%; padding: 8px; background: #0a0f22; color: #e6ecff; border:1px solid #2b3766; border-radius: 8px; }
+
+  .preview {
+    position: relative; height: 180px; /* Smaller */ background: #0a0f22; border:1px solid #1f2a4d; border-radius: 12px; overflow:hidden;
+  }
+  video, canvas { position:absolute; inset:0; width:100%; height:100%; object-fit: cover; transform: scaleX(-1); }
+  .stat { font-size: 12px; color:#a9b6e0; }
+  .pill { display:inline-block; padding: 4px 8px; border-radius: 999px; background:#152046; border:1px solid #253269; font-size: 11px; }
+  .right { position: relative; overflow: hidden; }
+  .stage {
+    position: absolute; inset: 0; padding: 22px; overflow: auto;
+    background:
+      radial-gradient(1200px 600px at 70% -20%, rgba(110,231,255,.06), transparent 70%),
+      radial-gradient(900px 500px at -10% 20%, rgba(124,242,155,.05), transparent 70%);
+  }
+  .grid-extended {
+    display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(220px, 1fr));
+    grid-template-rows: repeat(4, 120px);
+  }
+  .tile {
+    background: #0f1731; border:1px solid #1f2a4d; border-radius: 16px; padding: 16px;
+    display:flex; align-items:center; justify-content:center; font-weight: 600;
+    user-select: none; transition: transform .08s ease;
+  }
+  .tile:hover { outline: 1px dashed #2a3a79; }
+  .tile.active { box-shadow: 0 0 0 2px var(--accent) inset; }
+  .tile.clicked { animation: pop .22s ease; }
+  @keyframes pop { 50% { transform: scale(1.03); } }
+
+  /* Virtual Cursor */
+  .cursor {
+    position: fixed; top: 0; left: 0; width: 20px; height: 20px; border-radius: 50%;
+    pointer-events: none; z-index: 9999; transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 35% 35%, #c7f3ff, #6ee7ff);
+    box-shadow: 0 0 0 2px rgba(110,231,255,.25), 0 0 12px rgba(110,231,255,.35);
+    mix-blend-mode: screen;
+    transition: transform 0.1s linear; /* This transition can also add "lag", set to 0s for raw filter output */
+  }
+  .cursor.click { animation: click .18s ease; }
+  @keyframes click { 50% { transform: translate(-50%, -50%) scale(0.85);} }
+  
+  .cursor::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    border: 0px solid var(--accent);
+    transform: translate(-50%, -50%) scale(1.2);
+    transition: all 0.1s ease-out;
+  }
+  .cursor.dwell {
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+  .cursor.dwell::before {
+    transform: translate(-50%, -50%) scale(1);
+    border-width: 2px;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="left">
+    <h1>🎯 Head Controller (Extra Smooth)</h1>
+    <div class="card">
+      <div class="preview">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="startBtn" class="btn primary">Start Camera</button>
+        <button id="stopBtn" class="btn">Stop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:grid; gap:8px;"> <div>
+          <label>Click Mode</label>
+          <select id="clickMode">
+            <option value="mouth">Mouth Open</option>
+            <option value="dwell">Dwell (Hold Still)</option>
+          </select>
+        </div>
+        
+        <div id="dwellSettings" style="display: none;">
+          <label>Dwell time (ms) <span id="dwellVal" class="muted">1000</span></label>
+          <input id="dwell" type="range" min="500" max="2000" step="100" value="1000" />
+        </div>
+
+        <div id="mouthSettings">
+          <label>Click (mouth-open ratio) <span id="threshVal" class="muted">0.55</span></label>
+          <input id="thresh" type="range" min="0.3" max="0.9" step="0.01" value="0.55" />
+        </div>
+        
+        <div>
+          <label>Pointer sensitivity <span id="sensVal" class="muted">1.6</span></label>
+          <input id="sens" type="range" min="0.6" max="3.0" step="0.1" value="1.6" />
+        </div>
+
+        <div>
+          <label>Noise Reduction (lower = smoother) <span id="preVal" class="muted">0.40</span></label>
+          <input id="pre" type="range" min="0.05" max="1.0" step="0.01" value="0.4" />
+        </div>
+
+        <div>
+          <label>Smoothness (lower = smoother) <span id="cutoffVal" class="muted">0.100</span></label>
+          <input id="cutoff" type="range" min="0.001" max="1.0" step="0.001" value="0.1" />
+        </div>
+        
+        <div>
+          <label>Responsiveness (higher = less lag) <span id="betaVal" class="muted">0.050</span></label>
+          <input id="beta" type="range" min="0.001" max="0.1" step="0.001" value="0.05" />
+        </div>
+        
+        <div class="row">
+          <label><input type="checkbox" id="showPoints" checked /> Show landmarks</label>
+          <label><input type="checkbox" id="showCursor" checked /> Show cursor</label>
+        </div>
+        <div class="row">
+          <span class="stat">FPS: <span id="fps">--</span></span>
+          <span class="stat">Mouth: <span id="mouthStat">--</span></span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="right">
+    <div class="stage" id="stage">
+      <div class="grid-extended" id="grid">
+        <div class="tile">Button 1</div>
+        <div class="tile">Button 2</div>
+        <div class="tile">Button 3</div>
+        <div class="tile">Button 4</div>
+        <div class="tile">Button 5</div>
+        <div class="tile">Button 6</div>
+        <div class="tile">Button 7</div>
+        <div class="tile">Button 8</div>
+        <div class="tile">Button 9</div>
+        <div class="tile">Button 10</div>
+        <div class="tile">Button 11</div>
+        <div class="tile">Button 12</div>
+      </div>
+      <p class="muted" style="margin-top:18px">
+        <span class="kbd">M</span> toggles mirror, <span class="kbd">R</span> re-center.
+      </p>
+    </div>
+    <div class="cursor" id="cursor"></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+
+<script>
+(async function () {
+  const video = document.getElementById('video');
+  const overlay = document.getElementById('overlay');
+  const octx = overlay.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn  = document.getElementById('stopBtn');
+  const fpsEl = document.getElementById('fps');
+  const mouthStatEl = document.getElementById('mouthStat');
+  const stage = document.getElementById('stage');
+
+  const showPoints = document.getElementById('showPoints');
+  const showCursor = document.getElementById('showCursor');
+  const cursorEl = document.getElementById('cursor');
+
+  const sens = document.getElementById('sens');
+  const sensVal = document.getElementById('sensVal');
+
+  // UI Elements
+  const clickMode = document.getElementById('clickMode');
+  const dwellSettings = document.getElementById('dwellSettings');
+  const mouthSettings = document.getElementById('mouthSettings');
+  const dwell = document.getElementById('dwell');
+  const dwellVal = document.getElementById('dwellVal');
+  const thresh = document.getElementById('thresh');
+  const threshVal = document.getElementById('threshVal');
+  
+  // Filter UI Elements
+  const pre = document.getElementById('pre'); // <-- NEW
+  const preVal = document.getElementById('preVal'); // <-- NEW
+  const cutoff = document.getElementById('cutoff');
+  const cutoffVal = document.getElementById('cutoffVal');
+  const beta = document.getElementById('beta');
+  const betaVal = document.getElementById('betaVal');
+
+  let stream = null;
+  let running = false;
+  let mirrored = true;
+
+  let lastT = performance.now(), frameCount = 0, fps = 0;
+
+  // Cursor state
+  let cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  let neutral = null; 
+  let lastClickAt = 0;
+  
+  // --- NEW: Pre-filter state ---
+  let smoothedNx = 0.5;
+  let smoothedNy = 0.5;
+  
+  // Gesture state
+  let mouthOpenLock = false;
+  let dwellTimer = null;
+  let lastCursorPos = { x: 0, y: 0, t: 0 };
+
+  // --- 1-Euro Filter ---
+  function smoothingFactor(t_e, cutoff) {
+    const r = 2 * Math.PI * cutoff * t_e;
+    return r / (r + 1);
+  }
+  function exponentialSmoothing(a, x, x_prev) {
+    return a * x + (1 - a) * x_prev;
+  }
+  
+  class OneEuroFilter {
+    constructor(t0, x0, dx0 = 0.0, min_cutoff = 1.0, beta_ = 0.0, d_cutoff = 1.0) {
+      this.min_cutoff = min_cutoff;
+      this.beta_ = beta_;
+      this.d_cutoff = d_cutoff;
+      this.x_prev = x0;
+      this.dx_prev = dx0;
+      this.t_prev = t0;
+    }
+
+    filter(t, x) {
+      const t_e = t - this.t_prev;
+      if (t_e <= 0) {
+        return this.x_prev;
+      }
+      
+      const a_d = smoothingFactor(t_e, this.d_cutoff);
+      const dx = (x - this.x_prev) / t_e;
+      const dx_hat = exponentialSmoothing(a_d, dx, this.dx_prev);
+
+      const cutoff = this.min_cutoff + this.beta_ * Math.abs(dx_hat);
+      const a = smoothingFactor(t_e, cutoff);
+      const x_hat = exponentialSmoothing(a, x, this.x_prev);
+
+      this.x_prev = x_hat;
+      this.dx_prev = dx_hat;
+      this.t_prev = t;
+
+      return x_hat;
+    }
+  }
+
+  let filterX, filterY;
+
+  function resizeCanvases() {
+    overlay.width = overlay.clientWidth;
+    overlay.height = overlay.clientHeight;
+  }
+  window.addEventListener('resize', resizeCanvases);
+  resizeCanvases();
+
+  // Map normalized [0..1] x/y to screen coords
+  function updateCursor(rawNx, rawNy, t) {
+    if (!neutral) {
+      neutral = {x: rawNx, y: rawNy};
+      smoothedNx = rawNx;
+      smoothedNy = rawNy;
+    }
+
+    // --- NEW: Apply the "Noise Reduction" pre-filter ---
+    const alpha = parseFloat(pre.value);
+    smoothedNx = (rawNx * alpha) + (smoothedNx * (1 - alpha));
+    smoothedNy = (rawNy * alpha) + (smoothedNy * (1 - alpha));
+    // --- End pre-filter ---
+
+    // Now, all calculations use the pre-smoothed values
+    const dx = (smoothedNx - neutral.x);
+    const dy = (smoothedNy - neutral.y);
+    const scale = parseFloat(sens.value);
+    const targetX = window.innerWidth  / 2 + dx * window.innerWidth * scale;
+    const targetY = window.innerHeight / 2 + dy * window.innerHeight * scale;
+
+    // Apply 1-Euro Filter
+    cx = filterX.filter(t, targetX);
+    cy = filterY.filter(t, targetY);
+
+    cursorEl.style.left = cx + 'px';
+    cursorEl.style.top  = cy + 'px';
+
+    // Scroll Zone Logic
+    const stageRect = stage.getBoundingClientRect();
+    const scrollZoneSize = stageRect.height * 0.1;
+    
+    if (cx > stageRect.left && cx < stageRect.right && cy > stageRect.top && cy < stageRect.bottom) {
+      const cursorYInStage = cy - stageRect.top;
+      if (cursorYInStage < scrollZoneSize) {
+        stage.scrollBy(0, -10);
+      } else if (cursorYInStage > stageRect.height - scrollZoneSize) {
+        stage.scrollBy(0, 10);
+      }
+    }
+    
+    // Dwell Click Logic
+    if (clickMode.value === 'dwell') {
+      const dist = Math.hypot(cx - lastCursorPos.x, cy - lastCursorPos.y);
+      if (dist < 10) { 
+        if (!dwellTimer) {
+          dwellTimer = setTimeout(() => {
+            dispatchHeadClick(cx, cy);
+            dwellTimer = null;
+            cursorEl.classList.remove('dwell');
+          }, parseFloat(dwell.value));
+          
+          cursorEl.style.transitionDuration = `${dwell.value}ms`;
+          cursorEl.classList.add('dwell');
+        }
+      } else {
+        clearTimeout(dwellTimer);
+        dwellTimer = null;
+        cursorEl.style.transitionDuration = '0.1s';
+        cursorEl.classList.remove('dwell');
+      }
+      lastCursorPos = { x: cx, y: cy, t: t };
+    }
+  }
+
+  function dispatchHeadClick(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+    
+    const nowTs = performance.now();
+    if ((nowTs - lastClickAt) < 500) return; 
+    lastClickAt = nowTs;
+
+    el.classList?.add('clicked');
+    setTimeout(() => el.classList?.remove('clicked'), 180);
+
+    cursorEl.classList.add('click');
+    setTimeout(() => cursorEl.classList.remove('click'), 180);
+
+    el.click?.();
+    if (el.classList?.contains('tile')) {
+      document.querySelectorAll('.tile').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+    }
+  }
+
+  // Keyboard helpers
+  window.addEventListener('keydown', (e) => {
+    if (e.key === ' ') { e.preventDefault(); dispatchHeadClick(cx, cy); }
+    if (e.key.toLowerCase() === 'r') { 
+      neutral = null; // Re-center
+      // Also reset pre-filter state
+      smoothedNx = 0.5; 
+      smoothedNy = 0.5;
+    }
+    if (e.key.toLowerCase() === 'm') {
+      mirrored = !mirrored;
+      const s = mirrored ? 'scaleX(-1)' : 'none';
+      video.style.transform = s;
+      overlay.style.transform = s;
+    }
+  });
+
+  // Handle UI sliders
+  sens.addEventListener('input', () => sensVal.textContent = parseFloat(sens.value).toFixed(1));
+  thresh.addEventListener('input', () => threshVal.textContent = parseFloat(thresh.value).toFixed(2));
+  dwell.addEventListener('input', () => dwellVal.textContent = parseFloat(dwell.value));
+  
+  pre.addEventListener('input', () => preVal.textContent = parseFloat(pre.value).toFixed(2)); // <-- NEW
+  
+  cutoff.addEventListener('input', () => {
+    const newCutoff = parseFloat(cutoff.value);
+    cutoffVal.textContent = newCutoff.toFixed(3);
+    if (filterX) filterX.min_cutoff = newCutoff;
+    if (filterY) filterY.min_cutoff = newCutoff;
+  });
+  
+  beta.addEventListener('input', () => {
+    const newBeta = parseFloat(beta.value);
+    betaVal.textContent = newBeta.toFixed(3);
+    if (filterX) filterX.beta_ = newBeta;
+    if (filterY) filterY.beta_ = newBeta;
+  });
+  
+  clickMode.addEventListener('change', () => {
+    if (clickMode.value === 'dwell') {
+      dwellSettings.style.display = 'block';
+      mouthSettings.style.display = 'none';
+    } else {
+      dwellSettings.style.display = 'none';
+      mouthSettings.style.display = 'block';
+    }
+  });
+  
+  // Set initial text for all sliders
+  function setInitialLabels() {
+    clickMode.dispatchEvent(new Event('change'));
+    sensVal.textContent = parseFloat(sens.value).toFixed(1);
+    threshVal.textContent = parseFloat(thresh.value).toFixed(2);
+    dwellVal.textContent = parseFloat(dwell.value);
+    preVal.textContent = parseFloat(pre.value).toFixed(2); // <-- NEW
+    cutoffVal.textContent = parseFloat(cutoff.value).toFixed(3);
+    betaVal.textContent = parseFloat(beta.value).toFixed(3);
+  }
+  setInitialLabels();
+
+
+  // Demo tiles behavior
+  document.querySelectorAll('.tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      tile.animate([{ transform: 'scale(1.0)'}, { transform: 'scale(1.04)'}, { transform: 'scale(1.0)'}], { duration: 180, easing: 'ease-out' });
+    });
+  });
+
+  // FaceMesh setup
+  const faceMesh = new FaceMesh({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+  });
+  faceMesh.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+  faceMesh.onResults(onResults);
+
+  let camera = null;
+
+  async function start() {
+    if (running) return;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 540 }}, audio: false });
+      video.srcObject = stream;
+      await video.play();
+
+      camera = new Camera(video, {
+        onFrame: async () => {
+          await faceMesh.send({ image: video });
+        },
+        width: 960,
+        height: 540
+      });
+      camera.start();
+      running = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      neutral = null; 
+      
+      const t0 = performance.now();
+      const currentCutoff = parseFloat(cutoff.value);
+      const currentBeta = parseFloat(beta.value);
+      filterX = new OneEuroFilter(t0, 0.5, 0, currentCutoff, currentBeta);
+      filterY = new OneEuroFilter(t0, 0.5, 0, currentCutoff, currentBeta);
+
+    } catch (err) {
+      alert('Camera error: ' + err.message);
+    }
+  }
+
+  function stop() {
+    running = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    if (camera) camera.stop();
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    octx.clearRect(0,0,overlay.width, overlay.height);
+  }
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+
+  // Main results handler
+  function onResults(results) {
+    const now = performance.now();
+    frameCount++;
+    if (now - lastT >= 500) {
+      fps = Math.round((frameCount * 1000) / (now - lastT));
+      fpsEl.textContent = fps;
+      frameCount = 0; lastT = now;
+    }
+
+    octx.save();
+    octx.clearRect(0,0,overlay.width, overlay.height);
+
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+      octx.restore();
+      return;
+    }
+    const landmarks = results.multiFaceLandmarks[0];
+
+    const idx = {
+      nose: 1, upperLip: 13, lowerLip: 14, leftEyeOuter: 33, rightEyeOuter: 263
+    };
+    function L(i) { return landmarks[i]; }
+
+    let rawNx = L(idx.nose).x;
+    let rawNy = L(idx.nose).y;
+    if (mirrored) rawNx = 1 - rawNx;
+
+    // Update pointer, passing in timestamp for filter
+    updateCursor(rawNx, rawNy, now); // Pass raw values
+
+    // Gesture check is now conditional
+    if (clickMode.value === 'mouth') {
+      const mouthOpen = dist2d(L(idx.upperLip), L(idx.lowerLip));
+      const eyeSpan = dist2d(L(idx.leftEyeOuter), L(idx.rightEyeOuter));
+      const ratio = eyeSpan > 0 ? mouthOpen / eyeSpan : 0;
+      mouthStatEl.textContent = ratio.toFixed(2);
+      
+      const clickThresh = parseFloat(thresh.value);
+      
+      if (ratio > clickThresh && !mouthOpenLock) {
+        mouthOpenLock = true;
+        dispatchHeadClick(cx, cy);
+        setTimeout(()=> mouthOpenLock = false, 180);
+      }
+      if (ratio <= clickThresh * 0.85 && mouthOpenLock) {
+        mouthOpenLock = false;
+      }
+    } else {
+      mouthStatEl.textContent = '--';
+    }
+
+    if (showPoints.checked) {
+      drawLandmarks(octx, overlay.width, overlay.height, landmarks);
+    }
+    octx.restore();
+    cursorEl.style.display = showCursor.checked ? 'block' : 'none';
+  }
+
+  function dist2d(a, b) {
+    const dx = (a.x - b.x), dy = (a.y - b.y);
+    return Math.hypot(dx, dy);
+  }
+
+  function drawLandmarks(ctx, w, h, points) {
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(110,231,255,0.35)';
+    ctx.fillStyle = 'rgba(110,231,255,0.75)';
+    for (let i = 0; i < points.length; i+= 8) {
+      const p = points[i];
+      const x = (mirrored ? (1 - p.x) : p.x) * w;
+      const y = p.y * h;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const nose = points[1];
+    const up = points[13];
+    const lo = points[14];
+    const nx = (mirrored ? (1 - nose.x) : nose.x) * w;
+    const ny = nose.y * h;
+    ctx.beginPath(); ctx.arc(nx, ny, 3, 0, Math.PI*2); ctx.fillStyle='#7cf29b'; ctx.fill();
+    const ux = (mirrored ? (1 - up.x) : up.x) * w;
+    const uy = up.y * h;
+    const lx = (mirrored ? (1 - lo.x) : lo.x) * w;
+    const ly = lo.y * h;
+    ctx.strokeStyle='#ffc857';
+    ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(lx, ly); ctx.stroke();
+    ctx.restore();
+  }
+
+})();
+</script>
+</body>
+</html>
+```
