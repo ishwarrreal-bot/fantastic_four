@@ -1,0 +1,92 @@
+{
+    "name": "Vision Assistant - Accessibility for Blind Users",
+    "short_name": "Vision Assistant",
+    "description": "AI-powered voice-controlled accessibility app for blind and visually impaired users",
+    "start_url": "/complete_blindness.html",
+    "display": "standalone",
+    "background_color": "#121212",
+    "theme_color": "#1a73e8",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "categories": ["accessibility", "productivity", "utilities"],
+    "lang": "en",
+    "dir": "ltr",
+    "icons": [
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjcyIiBoZWlnaHQ9IjcyIiByeD0iMTYiIGZpbGw9IiMxYTczZTgiLz4KPHBhdGggZD0iTTM2IDE2QzI1IDE2IDE2IDI1IDE2IDM2QzE2IDQ3IDI1IDU2IDM2IDU2QzQ3IDU2IDU2IDQ3IDU2IDM2QzU2IDI1IDQ3IDE2IDM2IDE2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTI4IDI4SDQ0VjQ0SDI4VjI4WiIgZmlsbD0iIzFhNzNlOCIvPgo8L3N2Zz4K",
+            "sizes": "72x72",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjAiIGZpbGw9IiMxYTczZTgiLz4KPHBhdGggZD0iTTQ4IDIxQzM0IDIxIDIxIDM0IDIxIDQ4QzIxIDYyIDM0IDc1IDQ4IDc1QzYyIDc1IDc1IDYyIDc1IDQ4Qzc1IDM0IDYyIDIxIDQ4IDIxWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM2IDM2SDYwVjYwSDM2VjM2WiIgZmlsbD0iIzFhNzNlOCIvPgo8L3N2Zz4K",
+            "sizes": "96x96",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiByeD0iMjQiIGZpbGw9IiMxYTczZTgiLz4KPHBhdGggZD0iTTY0IDI0QzQ1IDI0IDI0IDQ1IDI0IDY0QzI0IDgzIDQ1IDEwNCA2NCAxMDRDODMgMTA0IDEwNCA4MyAxMDQgNjRDMTA0IDQ1IDgzIDI0IDY0IDI0WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTQ4IDQ4SDgwVjgwSDQ4VjQ4WiIgZmlsbD0iIzFhNzNlOCIvPgo8L3N2Zz4K",
+            "sizes": "128x128",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMzIiIGZpbGw9IiMxYTczZTgiLz4KPHBhdGggZD0iTTk2IDMyQzY3IDMyIDMyIDY3IDMyIDk2QzMyIDEyNSA2NyAxNjAgOTYgMTYwQzEyNSAxNjAgMTYwIDEyNSAxNjAgOTZDMTYwIDY3IDEyNSAzMiA5NiAzMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik03MiA3MkgxMjBWMTIwSDcyVjcyWiIgZmlsbD0iIzFhNzNlOCIvPgo8L3N2Zz4K",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iNjQiIGZpbGw9IiMxYTczZTgiLz4KPHBhdGggZD0iTTI1NiA2NEMxNzkgNjQgNjQgMTc5IDY0IDI1NkM2NCAzMzMgMTc5IDQ0OCAyNTYgNDQ4QzMzMyA0NDggNDQ4IDMzMyA0NDggMjU2QzQ0OCAxNzkgMzMzIDY0IDI1NiA2NFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xOTIgMTkySDMyMFYzMjBIMTkyVjE5MloiIGZpbGw9IiMxYTczZTgiLz4KPC9zdmc+Cg==",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDUwIiBoZWlnaHQ9IjkwMCIgdmlld0JveD0iMCAwIDQ1MCA5MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0NTAiIGhlaWdodD0iOTAwIiBmaWxsPSIjMTIxMjEyIi8+CjxyZWN0IHg9IjIwIiB5PSI0MCIgd2lkdGg9IjQxMCIgaGVpZ2h0PSI4MCIgZmlsbD0iIzFlMWUxZSIgcng9IjE2Ii8+Cjx0ZXh0IHg9IjIyNSIgeT0iOTAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzFhNzNlOCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VmlzaW9uIEFzc2lzdGFudDwvdGV4dD4KPHJlY3QgeD0iMjAiIHk9IjE2MCIgd2lkdGg9IjQxMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMxZTFlMWUiIHJ4PSIxNiIvPgo8Y2lyY2xlIGN4PSIyMjUiIGN5PSIyMzAiIHI9IjQwIiBmaWxsPSIjMWExYTFhIi8+Cjx0ZXh0IHg9IjIyNSIgeT0iMjgwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNheSAiSGV5IFZpc2lvbiI8L3RleHQ+CjxyZWN0IHg9IjIwIiB5PSIzOTAiIHdpZHRoPSI0MTAiIGhlaWdodD0iMTAwIiBmaWxsPSIjMWExYTNlIiByeD0iMTYiLz4KPHRleHQgeD0iMjI1IiB5PSI0MzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyMCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPueKh+iDveWGheWuueWfuuehgDwvdGV4dD4KPHJlY3QgeD0iMjAiIHk9IjUyMCIgd2lkdGg9IjQxMCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiMxZTFlMWUiIHJ4PSIxNiIvPgo8dGV4dCB4PSIyMjUiIHk9IjU3MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE4IiBmaWxsPSIjYjNiM2IzIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5XZWxjb21lIHRvIFZpc2lvbiBBc3Npc3RhbnQuPC90ZXh0Pgo8L3N2Zz4K",
+            "sizes": "450x900",
+            "type": "image/svg+xml",
+            "form_factor": "narrow",
+            "label": "Vision Assistant Mobile Interface"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Start Listening",
+            "short_name": "Listen",
+            "description": "Start voice recognition",
+            "url": "/?action=start-listening",
+            "icons": [{ "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjAiIGZpbGw9IiMxYTczZTgiLz4KPHBhdGggZD0iTTQ4IDIxQzM0IDIxIDIxIDM0IDIxIDQ4QzIxIDYyIDM0IDc1IDQ4IDc1QzYyIDc1IDc1IDYyIDc1IDQ4Qzc1IDM0IDYyIDIxIDQ4IDIxWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM2IDM2SDYwVjYwSDM2VjM2WiIgZmlsbD0iIzFhNzNlOCIvPgo8L3N2Zz4K", "sizes": "96x96" }]
+        },
+        {
+            "name": "Read Messages",
+            "short_name": "Messages",
+            "description": "Read latest messages",
+            "url": "/?action=read-messages",
+            "icons": [{ "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjAiIGZpbGw9IiMzNGE4NTMiLz4KPHBhdGggZD0iTTQ4IDIxQzM0IDIxIDIxIDM0IDIxIDQ4QzIxIDYyIDM0IDc1IDQ4IDc1QzYyIDc1IDc1IDYyIDc1IDQ4Qzc1IDM0IDYyIDIxIDQ4IDIxWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM2IDM2SDYwVjYwSDM2VjM2WiIgZmlsbD0iIzM0YTg1MyIvPgo8L3N2Zz4K", "sizes": "96x96" }]
+        },
+        {
+            "name": "Take Note",
+            "short_name": "Note",
+            "description": "Create a new note",
+            "url": "/?action=take-note",
+            "icons": [{ "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMjAiIGZpbGw9IiNmYmJjMDQiLz4KPHBhdGggZD0iTTQ4IDIxQzM0IDIxIDIxIDM0IDIxIDQ4QzIxIDYyIDM0IDc1IDQ4IDc1QzYyIDc1IDc1IDYyIDc1IDQ4Qzc1IDM0IDYyIDIxIDQ4IDIxWiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM2IDM2SDYwVjYwSDM2VjM2WiIgZmlsbD0iI2ZiYmMwNCIvPgo8L3N2Zz4K", "sizes": "96x96" }]
+        }
+    ],
+    "share_target": {
+        "action": "/share-target/",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url"
+        }
+    },
+    "handle_links": "preferred",
+    "edge_side_panel": {
+        "preferred_width": 400
+    }
+}
